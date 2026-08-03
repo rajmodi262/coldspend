@@ -248,14 +248,11 @@ def main() -> None:
 
 <h1>Coldspend</h1>
 <p class="sub">Cold chain is not a limit you breach. It's a budget you spend.</p>
-<p style="margin:.9rem 0 0"><a href="app/" style="display:inline-block;background:{ORANGE};color:#fff;
- padding:.55rem 1.1rem;border-radius:5px;text-decoration:none;font-weight:600">
- Open the interactive app &rarr;</a>
- <a href="memo.html" style="display:inline-block;margin-left:.5rem;border:1px solid {GRID};
- color:{INK};padding:.55rem 1.1rem;border-radius:5px;text-decoration:none;font-weight:600">
- Read the client memo</a></p>
-<p style="color:#898781;font-size:.85rem;margin:.5rem 0 0">The app solves in your browser.
- The memo regenerates itself from the analysis.</p>
+<p style="margin:.9rem 0 0"><a href="memo.html" style="display:inline-block;background:{ORANGE};
+ color:#fff;padding:.55rem 1.1rem;border-radius:5px;text-decoration:none;font-weight:600">
+ Read the client memo &rarr;</a>
+ <span style="color:#898781;font-size:.85rem;margin-left:.6rem">regenerates itself from the
+ analysis</span></p>
 <p class="stamp">Built {dt.datetime.now():%Y-%m-%d %H:%M} · {n:,} simulated shipments ·
 every number on this page computed at build time</p>
 

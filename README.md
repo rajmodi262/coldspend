@@ -27,7 +27,7 @@ so a broken simulator cannot ship a working-looking page.
 | Risk models + probability calibration + Bayes oracle | ✅ |
 | Fuzzy RD with placebo/density/balance diagnostics | ⚠️ works, ~50% upward bias unresolved |
 | Cost model, portfolio MILP, policy map | ✅ |
-| marimo WASM app (solver runs in-browser) | ✅ |
+| marimo WASM app | ⚠️ deployed but **not working** — see below |
 | Counterfactual quarter + self-regenerating memo | ✅ |
 | Deck outline, resume bullets, interview answers | ✅ [PITCH.md](PITCH.md) |
 | Uplift model, carrier scorecard | ⬜ |
@@ -46,6 +46,16 @@ so a broken simulator cannot ship a working-looking page.
   intervening protects the paperwork, not the product.
 - **$240k of intervention beats the incumbent rule by $444k per simulated quarter** — computed, not
   asserted, and positive across every cost assumption tested.
+
+## Known broken: the WASM app
+
+`/app/` loads Pyodide, installs the package, and renders its sliders — but the three cells that
+draw with matplotlib (policy map, recommendation, stability callout) produce no output and raise
+no error. Two fixes got it this far (resolving the wheel via `mo.notebook_location()`, and loading
+scipy explicitly since marimo's scanner cannot see imports inside an installed package); selecting
+the Agg backend did not finish the job. **It is not linked from the landing page** until it works.
+
+The static site does not depend on it — the policy map there is rendered server-side at build time.
 
 ## Quickstart
 
