@@ -208,6 +208,31 @@ def chart_fda_validation(d: pd.DataFrame) -> tuple[str, dict]:
     return png(fig), c
 
 
+
+APPENDIX_HEAD = """<!doctype html><meta charset="utf-8">
+<title>Coldspend appendix</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ body{max-width:900px;margin:0 auto;padding:2.5rem 1.25rem 5rem;
+   font:16px/1.65 "Segoe UI",system-ui,-apple-system,sans-serif;color:#0b0b0b;background:#fcfcfb}
+ h1{font-size:1.7rem;margin:0 0 .3rem;letter-spacing:-.02em}
+ h2{font-size:1.15rem;margin:2.6rem 0 .6rem}
+ .sub{color:#52514e;margin:0 0 2rem}
+ .note{background:#fff8ee;border-left:3px solid #eb6834;padding:.85rem 1.1rem;
+   margin:1.4rem 0;font-size:.93rem;border-radius:0 4px 4px 0}
+ table{border-collapse:collapse;width:100%;font-size:.88rem;margin:.8rem 0}
+ th,td{text-align:left;padding:.42rem .6rem;border-bottom:1px solid #e1e0d9}
+ th{color:#52514e;font-weight:600}
+ .num{text-align:right;font-variant-numeric:tabular-nums}
+ .ok{color:#0ca30c;font-weight:600} .bad{color:#d03b3b;font-weight:600}
+ img{width:100%;height:auto;margin:.6rem 0} a{color:#2a78d6}
+</style>
+<p><a href="./">&larr; back to the argument</a></p>
+<h1>Appendix</h1>
+<p class="sub">The estimator, the constraint that makes this an optimisation, and the models,
+kept off the front page so the argument fits in three minutes.</p>
+"""
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     n = 12000
@@ -351,21 +376,6 @@ after cold storage. This model simulates transit only. It has no warehouse stage
 cannot produce the mechanism behind the entire real freeze record. That is a scope limit found by
 looking, not assumed — and more useful than agreement would have been.</div>
 
-<h2>Regression discontinuity at the threshold</h2>
-<p>Alarm thresholds are a textbook regression discontinuity on a running variable measured to a
-tenth of a degree by every vendor on earth — and no published RD, IV or DiD on any cold-chain alarm
-threshold appears to exist, in pharma, food, reefer, blood banking or organ transport.</p>
-<table>
-<tr><th>Quantity</th><th class="num">Value</th></tr>
-<tr><td>First stage (jump in P(intervene))</td><td class="num">{r.jump_treatment:+.3f}</td></tr>
-<tr><td>Fuzzy RD estimate</td><td class="num">{r.estimate:+.3f} pp</td></tr>
-<tr><td>95% CI (bootstrap)</td><td class="num">[{lo:+.3f}, {hi:+.3f}]</td></tr>
-<tr><td>True complier effect (known only in simulation)</td><td class="num">{truth:+.3f} pp</td></tr>
-</table>
-<div class="note"><strong>Known open issue.</strong> The estimator covers the truth and is stable
-across bandwidths, but still overstates the complier effect by roughly 50%. Robust bias-correction
-is not yet applied, so this point estimate should not be read as unbiased.</div>
-
 <h2>The decision: what to actually do</h2>
 <p>Every part of this has been built by somebody except one — the argmin. No published system,
 patent or paper prices <em>all</em> the mid-transit actions in a single currency against a
@@ -379,6 +389,51 @@ well-insulated box is mostly “re-ice” and the poorly-insulated one is mostly
 same product, the same money and the same risk. A policy map can be reviewed and signed
 <strong>once, in advance</strong>, which is a very different governance object from a
 recommendation that has to be adjudicated shipment by shipment at 2&nbsp;a.m.</p>
+
+
+<h2>Where this could be wrong</h2>
+<p>The intervention costs are assumptions in a plausible band, so the honest headline is not the
+dollar figure but its stability: <strong>{stab.stable_share:.0%} of the decision space keeps the
+same recommended action across the full low-to-high cost range.</strong> Reject every cost here
+individually and the actions still stand.</p>
+<p>Shipments are simulated; the weather driving them is not. The estimator behind the threshold
+finding carries roughly +10% mean bias, with its worst single cohort 59% out, which is why nothing
+above is quoted as a bare point estimate.</p>
+
+<p style="margin-top:2.4rem"><a href="appendix.html" style="display:inline-block;border:1px solid
+ {GRID};color:{INK};padding:.55rem 1.1rem;border-radius:5px;text-decoration:none;font-weight:600">
+ Appendix: the estimator, the constraint, the models &rarr;</a></p>
+
+<footer>
+Coldspend · physics-based digital twin of pharmaceutical cold chain ·
+MKT per USP&nbsp;⟨1079⟩, Arrhenius stability budget, lumped-capacitance RC with phase-change handling.
+Ambient forcing is <strong>real Open-Meteo historical reanalysis</strong> (2024 hourly, CC-BY 4.0)
+for all 18 airports, cached in-repo so every figure reproduces offline. Shipment routing, packaging
+and failure modes are simulated. Simulated results — not a claim about any real network.
+</footer>
+"""
+
+    appendix = APPENDIX_HEAD + f"""
+<h2>Regression discontinuity at the threshold</h2>
+<p>Alarm thresholds are a textbook regression discontinuity on a running variable measured to a
+tenth of a degree by every vendor on earth — and no published RD, IV or DiD on any cold-chain alarm
+threshold appears to exist, in pharma, food, reefer, blood banking or organ transport.</p>
+<table>
+<tr><th>Quantity</th><th class="num">Value</th></tr>
+<tr><td>First stage (jump in P(intervene))</td><td class="num">{r.jump_treatment:+.3f}</td></tr>
+<tr><td>Fuzzy RD estimate</td><td class="num">{r.estimate:+.3f} pp</td></tr>
+<tr><td>95% CI (bootstrap)</td><td class="num">[{lo:+.3f}, {hi:+.3f}]</td></tr>
+<tr><td>True complier effect (known only in simulation)</td><td class="num">{truth:+.3f} pp</td></tr>
+</table>
+<div class="note"><strong>And a textbook fix that failed.</strong> Bias against the true complier
+effect is about +10% on the mean, with full interval coverage across five independent cohorts. The
+standard remedy, Imbens-Kalyanaraman / CCT MSE-optimal bandwidth selection, is implemented and
+deliberately <em>not used</em>: measured, it gives +71% mean bias and returns the wrong sign in two
+cohorts of five. It selects windows of 50 to 83 minutes, and only about 5% of shipments sit within
+150 minutes of the threshold, so the Wald ratio's denominator goes unstable. This design is
+<strong>variance-limited, not bias-limited</strong>, which points at sample size or threshold
+placement rather than a cleverer bandwidth rule. The worst single cohort is still 59% out, and that
+is why nothing here is ever quoted as a bare point estimate.</div>
 
 <h2>Why this is an optimisation and not a lookup</h2>
 <p>Five actions on one shipment is a lookup table, and pretending otherwise would be theatre. It
@@ -407,15 +462,9 @@ the irreducible uncertainty that keeps the exercise from being circular.</p>
 <h2>Generator calibration gate</h2>
 <table><tr><th>Check</th><th class="num">Value</th><th class="num">Band</th><th>Result</th></tr>
 {gate_rows}</table>
-
-<footer>
-Coldspend · physics-based digital twin of pharmaceutical cold chain ·
-MKT per USP&nbsp;⟨1079⟩, Arrhenius stability budget, lumped-capacitance RC with phase-change handling.
-Ambient forcing is <strong>real Open-Meteo historical reanalysis</strong> (2024 hourly, CC-BY 4.0)
-for all 18 airports, cached in-repo so every figure reproduces offline. Shipment routing, packaging
-and failure modes are simulated. Simulated results — not a claim about any real network.
-</footer>
 """
+
+    (OUT / "appendix.html").write_text(appendix, encoding="utf-8")
     (OUT / "index.html").write_text(html, encoding="utf-8")
     (OUT / ".nojekyll").write_text("", encoding="utf-8")
     kb = len((OUT / "index.html").read_bytes()) / 1024

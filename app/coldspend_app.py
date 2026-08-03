@@ -1,4 +1,24 @@
-"""Coldspend — the interactive decision app.
+"""Coldspend — the interactive decision app. NOT DEPLOYED. See below.
+
+STATUS: kept as source, removed from the deploy pipeline. It renders its sliders
+and its markdown but the three matplotlib cells produce no output and raise no
+error I could surface. Shipping a page that looks finished and is not is worse
+than not shipping it, so the site links to the appendix instead.
+
+Two real bugs were found and fixed on the way here, and they are the reason this
+file is worth keeping rather than deleting:
+
+  1. A relative wheel URL resolves against the WEB WORKER's location, not the
+     page's, so micropip fetched a 404 HTML page and failed with
+     `BadZipFile: File is not a zip file`. Fixed with mo.notebook_location().
+  2. micropip.install(..., deps=False) skips scipy, and marimo's import scanner
+     cannot see imports inside an installed package, so scipy was never loaded:
+     `ModuleNotFoundError: No module named 'scipy'`. Fixed by installing the
+     runtime dependencies explicitly.
+
+A third cause was ruled out along the way: the CDN is NOT blocked, Pyodide loads
+fine, and Python runs. That was diagnosed from an absent network request instead
+of from the console, and it was wrong. Read the console first.
 
 Runs as a normal marimo notebook locally, and exports to WebAssembly for
 GitHub Pages, where the whole thing executes in the viewer's browser via
