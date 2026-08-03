@@ -37,7 +37,7 @@ Repo skeleton, Python 3.12 via uv, and the pharmacopoeial physics with its accep
 
 **Gate passed:** 32/32 green; the 1.787× ratio reproduces from the package.
 
-## Phase 1 — The Generator ⬅ **NEXT**
+## Phase 1 — The Generator ✅ COMPLETE
 
 The simulator. Everything downstream is built on this, so it is the highest-risk phase in the project.
 
@@ -55,7 +55,7 @@ The simulator. Everything downstream is built on this, so it is the highest-risk
 **Gate:** excursion rate and freeze rate inside declared bands; Crēdo hold time within 10% of the
 published figure; the whole dataset rebuilds from one command and one seed, reproducibly.
 
-## Phase 2 — The Measurement Layer
+## Phase 2 — The Measurement Layer ✅ COMPLETE
 
 Turning traces into numbers a decision can use.
 
@@ -70,7 +70,11 @@ Turning traces into numbers a decision can use.
 
 **Gate:** calibration curve within tolerance; model skill reported against the oracle ceiling.
 
-## Phase 3 — Deploy Ugly + The Causal Layer
+## Phase 3 — Deploy Ugly + The Causal Layer ⚠️ MOSTLY COMPLETE
+
+Site is live at https://rajmodi262.github.io/coldspend/ and the RD is ported and
+diagnosed. Outstanding: the ~50% RD bias (needs MSE-optimal bandwidth selection),
+plus uplift and the carrier scorecard.
 
 Two tracks, run together. The deploy is a **hard gate**, not an aspiration.
 
@@ -84,7 +88,7 @@ Two tracks, run together. The deploy is a **hard gate**, not an aspiration.
 
 **Gate:** a URL exists. RD recovers the known LATE within tolerance with valid coverage.
 
-## Phase 4 — The Decision Layer
+## Phase 4 — The Decision Layer ✅ COMPLETE ⬅ **you are here**
 
 The argmin. This is the project's novelty claim, so it gets the most care.
 

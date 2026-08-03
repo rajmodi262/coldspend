@@ -10,21 +10,39 @@ Two shipments, both 60 hours, **both entirely inside 2–8 °C**, both filing ze
 passing compliance identically. One cruises at 3.0 °C, the other at 7.5 °C. The warm one ages the
 product **1.787× faster**. Compliance cannot tell them apart. A stability budget can.
 
+**Live: https://rajmodi262.github.io/coldspend/** — every figure recomputed from source on each push.
+
 ## Status
 
-Early build. The physics core and its acceptance tests are in place; the simulator, optimizer and
-app are not yet.
+Phases 0–4 of 6 complete (see [PHASES.md](PHASES.md)). 78 tests; CI runs them *before* it deploys,
+so a broken simulator cannot ship a working-looking page.
 
 | Component | State |
 |---|---|
-| MKT (USP ⟨1079⟩) | ✅ implemented + tested |
-| Arrhenius stability budget | ✅ implemented + tested |
-| RC + PCM thermal model | ✅ implemented + tested |
-| Regression-discontinuity estimator | ✅ prototyped and validated (`../prototypes/`) |
-| Shipment simulator | ⬜ next |
-| MILP intervention optimizer | ⬜ |
-| Policy map | ⬜ |
+| MKT (USP ⟨1079⟩) | ✅ |
+| Arrhenius stability budget + freeze damage | ✅ |
+| RC + PCM thermal model | ✅ |
+| Shipment generator, both potential outcomes | ✅ |
+| Calibration gate (5 hard identification checks) | ✅ |
+| Risk models + probability calibration + Bayes oracle | ✅ |
+| Fuzzy RD with placebo/density/balance diagnostics | ⚠️ works, ~50% upward bias unresolved |
+| Cost model, portfolio MILP, policy map | ✅ |
+| Uplift model, carrier scorecard | ⬜ |
 | marimo WASM app | ⬜ |
+| Client memo, deck | ⬜ |
+
+## Results worth knowing before reading further
+
+- **Gradient boosting beats logistic regression by −0.0001 AUC.** Not a typo. Reported rather than buried.
+- **AUC ≈ 0.98 is a warning, not a trophy.** Predicting a breach from "already at 7.8 °C and warming"
+  is genuinely easy — which is exactly why prediction is not the contribution, and it is the part
+  that is already patented.
+- **The industry's alarm threshold fires where intervening barely helps** — 0.17 SD at the SOP
+  cutoff, rising to 0.68 SD deeper in the tail.
+- **87% of the state space keeps the same recommendation across the full cost range.** A reviewer
+  can reject every individual cost assumption and the recommended action still stands.
+- **On a $4,000 saline shipment the QA deviation investigation costs several times the goods**, so
+  intervening protects the paperwork, not the product.
 
 ## Quickstart
 
