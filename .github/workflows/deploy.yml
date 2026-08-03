@@ -50,6 +50,10 @@ jobs:
       - run: uv pip install -e "." marimo
       - name: build the site (every figure recomputed from source)
         run: uv run python scripts/build_site.py
+      - name: regenerate the client memo from the analysis
+        # Not a template with numbers pasted in — the memo runs the counterfactual
+        # quarter itself, so no figure in it can drift from the code.
+        run: uv run python scripts/build_memo.py
       - name: build the wheel the WASM app installs at runtime
         # Pyodide has no site-packages to install into, so the app micropips
         # this wheel from a relative URL. It must be rebuilt whenever the source
