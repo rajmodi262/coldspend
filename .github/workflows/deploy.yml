@@ -61,9 +61,11 @@ jobs:
         run: uv build --wheel -o dist
       - name: export the marimo app to WebAssembly
         run: |
+          mkdir -p app/public
+          cp dist/coldspend-*.whl app/public/
           uv run marimo export html-wasm app/coldspend_app.py -o site/app --mode run
-          cp dist/coldspend-*.whl site/app/
           rm -f site/app/CLAUDE.md
+          test -f site/app/public/coldspend-0.1.0-py3-none-any.whl
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
