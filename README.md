@@ -44,7 +44,7 @@ so a broken simulator cannot ship a working-looking page.
   can reject every individual cost assumption and the recommended action still stands.
 - **On a $4,000 saline shipment the QA deviation investigation costs several times the goods**, so
   intervening protects the paperwork, not the product.
-- **$240k of intervention beats the incumbent rule by $444k per simulated quarter** — computed, not
+- **$198k of intervention beats the incumbent rule by $239k per simulated quarter** — computed, not
   asserted, and positive across every cost assumption tested.
 
 ## The RD bias, and a textbook fix that failed
@@ -80,6 +80,11 @@ scipy explicitly since marimo's scanner cannot see imports inside an installed p
 the Agg backend did not finish the job. **It is not linked from the landing page** until it works.
 
 The static site does not depend on it — the policy map there is rendered server-side at build time.
+
+## If you are Raj
+
+Read [STUDY.md](STUDY.md) before presenting this. Claude wrote most of this repository, which is
+fine for the artifact and fatal for the interview if you cannot defend it. That file is the gap.
 
 ## Quickstart
 
