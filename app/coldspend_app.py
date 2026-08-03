@@ -39,21 +39,28 @@ async def _():
     # this app did, and why nothing below it ever ran.
     import marimo as mo
 
+    # Imported here so marimo's dependency scanner preloads them into Pyodide.
+    # It can only see imports written in the notebook itself — scipy is imported
+    # inside coldspend.decide.optimizer, which the scanner never reads, so
+    # leaving it implicit produced `ModuleNotFoundError: No module named 'scipy'`
+    # and killed every cell below.
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import scipy  # noqa: F401
+
     try:
         import coldspend  # noqa: F401
     except ImportError:
         import micropip
 
+        # Install the runtime dependencies EXPLICITLY, then the package with
+        # deps=False. The wheel declares the whole project's requirements —
+        # pandas, pyarrow, lifelines, diskcache — and several have no emscripten
+        # build, so letting micropip resolve them fails. But deps=False alone is
+        # not enough either: it skips scipy, which this app genuinely needs.
+        await micropip.install(["numpy", "scipy", "matplotlib"])
         wheel = str(mo.notebook_location() / "public" / "coldspend-0.1.0-py3-none-any.whl")
-        # deps=False: the wheel declares the full project's dependencies (pandas,
-        # pyarrow, lifelines, diskcache ...), but this app only touches the
-        # physics and decision layers, which need numpy and scipy — both already
-        # in Pyodide. Resolving the rest would fail on packages that have no
-        # emscripten build.
         await micropip.install(wheel, deps=False)
-
-    import matplotlib.pyplot as plt
-    import numpy as np
     from coldspend.decide import (
         DEFAULT_COSTS,
         Action,
