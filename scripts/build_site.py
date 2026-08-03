@@ -285,6 +285,12 @@ def main() -> None:
 
     print("validating against openFDA ...")
     fda_png, fda_cmp = chart_fda_validation(d)
+    from coldspend.validate import fetch_labels, summarise
+    lab = summarise(fetch_labels())
+    lab_n = f"{lab.n_ranges:,}"
+    lab_allow = f"{lab.n_with_allowance / max(lab.n_ranges, 1):.0%}"
+    lab_head = f"{lab.mean_headroom_c:.1f}"
+    lab_cold = f"{lab.refrigerated_share:.1%}"
     sim_fs = f"{fda_cmp['sim_freeze_share']:.0%}"
     fda_fs = f"{fda_cmp['fda_freeze_share']:.0%}"
     fda_n = f"{fda_cmp['fda_classifiable']:.0f}"
@@ -375,6 +381,20 @@ comparison is decisive: <strong>every freeze-caused recall in the dataset is a s
 after cold storage. This model simulates transit only. It has no warehouse stage, so it structurally
 cannot produce the mechanism behind the entire real freeze record. That is a scope limit found by
 looking, not assumed — and more useful than agreement would have been.</div>
+
+<h2>The allowance this is all aimed at</h2>
+<p>The claim here has never been that software decides disposition &mdash; you cannot un-degrade a
+molecule, and no model should tell QA what to release. It is narrower: stop a shipment spending
+stability budget it does not have, so the excursion that arrives falls <em>inside</em> a
+pre-approved allowance rather than outside one.</p>
+<p>Those allowances are not hypothetical. Parsed from {lab_n} FDA drug labels carrying an explicit
+temperature range, <strong>{lab_allow} state a pre-approved excursion window in their own words</strong>
+&mdash; <em>&ldquo;store at 25&nbsp;&deg;C; excursions permitted between 15&ndash;30&nbsp;&deg;C&rdquo;</em>
+&mdash; with a mean of <strong>{lab_head}&nbsp;&deg;C of permitted headroom</strong> above the labelled
+maximum. That headroom is the quantity this whole decision layer is trying to protect.</p>
+<p style="color:#898781;font-size:.9rem">Also from that corpus, and mildly counter-intuitive: only
+{lab_cold} of labelled ranges are refrigerated. Cold chain is a small minority of pharma by label
+count. It matters for what is in it, not how much of it there is.</p>
 
 <h2>The decision: what to actually do</h2>
 <p>Every part of this has been built by somebody except one — the argmin. No published system,

@@ -1,5 +1,13 @@
 """External validation: checking the simulator against real-world records."""
 
+from .labels import (
+    LabelStats,
+    StorageSpec,
+    fetch_labels,
+    parse_allowance,
+    parse_range,
+    summarise,
+)
 from .openfda import (
     FDAFailureMix,
     classify,
@@ -9,5 +17,7 @@ from .openfda import (
 )
 
 __all__ = [
-    "FDAFailureMix", "classify", "compare_to_simulation", "failure_mix", "fetch_events",
+    "FDAFailureMix", "LabelStats", "StorageSpec", "classify", "compare_to_simulation",
+    "failure_mix", "fetch_events", "fetch_labels", "parse_allowance", "parse_range",
+    "summarise",
 ]
