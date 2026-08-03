@@ -97,6 +97,40 @@ class SimConfig:
     hub_dwell_h: tuple[float, float] = (2.0, 10.0)
     dest_dwell_h: tuple[float, float] = (3.0, 24.0)
 
+    # --- controlled storage, added because the FDA record demanded it -------
+    storage_h: tuple[float, float] = (12.0, 96.0)
+    """Time in a temperature-controlled warehouse either side of the flight.
+
+    This stage exists because external validation said it had to. Of 78 real
+    temperature-related drug recalls, **storage is mentioned in 51% and transit
+    in 14%** — the model was aimed squarely at the minority failure mode, and
+    could not produce the mechanism behind ANY of the real freeze recalls, all
+    of which are warehouse events ("stored below 32 F", "subfreezing in a
+    distribution centre", "crystallised after cold storage").
+    """
+    p_storage_equipment_failure: float = 0.020
+    """Warehouse refrigeration failing or being mis-set. FDA's freeze recalls are
+    overwhelmingly this: a unit running too cold, not a lane running too warm."""
+    storage_failure_offset_c: tuple[float, float] = (-11.0, 9.0)
+    """How far a failed unit drifts FROM THE PRODUCT'S OWN SETPOINT.
+
+    An offset, not an absolute temperature. Storing everything at a fixed 5 degC
+    destroyed 40% of the cryogenic consignments — a -135 degC dose put in a
+    +5 degC fridge simply thaws. That is the same mistake as re-icing a CAR-T
+    dose to +4 degC, made a second time in a new place, and it is why the
+    warehouse now holds product at ITS OWN labelled condition.
+
+    The range spans both directions on purpose: a mis-set fridge is the single
+    most common way real product freezes, and a model that only fails warm
+    cannot represent the FDA record at all."""
+    storage_failure_detect_h: tuple[float, float] = (2.0, 20.0)
+    """How long a failed unit runs before somebody notices and moves the stock.
+
+    Leaving it broken for the whole storage window drove write-offs to 7.5%,
+    outside the declared band. That was the model being wrong, not the band:
+    warehouses are alarmed, and a failure is caught in hours rather than the
+    days a shipment may sit there. The exposure is detection-limited."""
+
     # --- intervention effect ----------------------------------------------
     reice_setpoint_c: float = 4.0
     """Re-icing resets the payload toward this. Note it is ABOVE freezing on
@@ -241,11 +275,33 @@ def simulate_shipment(
     # Hourly weather held constant within the hour, then observed on the 10-minute
     # grid. np.repeat, not interpolation: Open-Meteo gives hourly values and
     # inventing sub-hourly structure would be fabricating data we do not have.
+    # Controlled storage before the flight. Normally held at setpoint; when the
+    # unit fails or is mis-set it drifts to a fixed wrong temperature, which may
+    # be BELOW freezing — the mechanism behind every freeze-caused recall in the
+    # FDA record, and one the transit-only model could not produce.
+    def _storage(n: int) -> np.ndarray:
+        """A controlled-storage window, occasionally with a failed unit in it."""
+        # Held at the PRODUCT's labelled condition — a fridge for 2-8 degC goods,
+        # a room-temperature store for saline, an LN2 freezer for cell therapy.
+        block = np.full(n, product.ref_temp_c)
+        if rng.random() < cfg.p_storage_equipment_failure:
+            bad = min(n, max(1, int(round(_u(rng, cfg.storage_failure_detect_h)))))
+            at = int(rng.integers(0, max(1, n - bad + 1)))
+            block[at:at + bad] = product.ref_temp_c + _u(rng, cfg.storage_failure_offset_c)
+        return block
+
+    n_store_o = max(int(round(_u(rng, cfg.storage_h))), 1)
+    store_o = _storage(n_store_o)
+
     amb_pre = np.repeat(
-        np.concatenate([amb_org, np.full(n_f1, CARGO_HOLD_C), amb_hub]), STEPS_PER_HOUR
+        np.concatenate([store_o, amb_org, np.full(n_f1, CARGO_HOLD_C), amb_hub]),
+        STEPS_PER_HOUR,
     )
+    n_store_d = max(int(round(_u(rng, cfg.storage_h))), 1)
+    store_d = _storage(n_store_d)
+
     amb_post = np.repeat(
-        np.concatenate([np.full(n_f2, CARGO_HOLD_C), amb_dst]), STEPS_PER_HOUR
+        np.concatenate([np.full(n_f2, CARGO_HOLD_C), amb_dst, store_d]), STEPS_PER_HOUR
     )
     amb_all = np.concatenate([amb_pre, amb_post])
 
@@ -354,7 +410,10 @@ def simulate_shipment(
         "packaging": pkg.name,
         "consignment_value_usd": product.consignment_value_usd,
         "depart": depart,
-        "transit_h": float(len(amb_all)) * dt_h,
+        "transit_h": (float(len(amb_all)) - (n_store_o + n_store_d) * STEPS_PER_HOUR) * dt_h,
+        "storage_h": float(n_store_o + n_store_d),
+        # ^ reported separately. Folding warehouse time into "transit" pushed the
+        # median to 150 h and broke the band — a labelling error, not a real one.
         "tarmac_hold": int(tarmac),
         "customs_hold": int(customs),
         # --- DECISION-TIME features: known at the hub, safe to model on -----
