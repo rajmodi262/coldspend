@@ -36,7 +36,7 @@ from coldspend.models import evaluate  # noqa: E402
 from coldspend.physics import equivalent_hours  # noqa: E402
 from coldspend.sim import (  # noqa: E402
     SimConfig,
-    SyntheticClimate,
+    ReanalysisClimate,
     calibration_check,
     simulate_portfolio,
 )
@@ -164,7 +164,7 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     n = 12000
     print(f"simulating {n:,} shipments ...")
-    res = simulate_portfolio(n, SyntheticClimate(), seed=20260803)
+    res = simulate_portfolio(n, ReanalysisClimate(), seed=20260803)
     df = pd.DataFrame([r.record for r in res])
     d = df[df["product"] != "CAR-T dose"]
 
@@ -179,7 +179,7 @@ def main() -> None:
 
     print("running RD ...")
     cfg = SimConfig(sop_threshold_min=900.0)
-    deep = pd.DataFrame([r.record for r in simulate_portfolio(n, SyntheticClimate(), seed=5, cfg=cfg)])
+    deep = pd.DataFrame([r.record for r in simulate_portfolio(n, ReanalysisClimate(), seed=5, cfg=cfg)])
     dd = deep[deep["product"] != "CAR-T dose"]
     r = fuzzy_rd(dd.running_var_min.values, dd.treated.values.astype(float),
                  dd.post_hub_budget_pct.values, 250.0, 900.0)
@@ -256,11 +256,12 @@ def main() -> None:
 <p class="stamp">Built {dt.datetime.now():%Y-%m-%d %H:%M} · {n:,} simulated shipments ·
 every number on this page computed at build time</p>
 
-<div class="note"><strong>This is simulated.</strong> No proprietary telemetry was used. Shipments
-come from a physics-based digital twin — an RC thermal model with phase-change handling, driven by
-real airport geography and a climatology — deliberately built so that both arms of every shipment
-are known. That is the point: the individual treatment effect is unobservable in any real dataset,
-and here it is ground truth against which an estimator can be scored.</div>
+<div class="note"><strong>Simulated shipments, real weather.</strong> No proprietary telemetry
+was used — but the ambient forcing is not invented either: every lane is driven by
+<strong>real Open-Meteo hourly reanalysis</strong> for 2024 at its actual airports. The thermal
+model, routing and failure modes are simulated, deliberately, so that <em>both arms</em> of every
+shipment are known. That is the point: the individual treatment effect is unobservable in any real
+dataset, and here it is ground truth an estimator can be scored against.</div>
 
 <h2>The problem, in one chart</h2>
 <p>Two shipments. Both 60 hours. Both entirely inside 2–8&nbsp;°C, both filing zero deviations,
@@ -337,8 +338,9 @@ the irreducible uncertainty that keeps the exercise from being circular.</p>
 <footer>
 Coldspend · physics-based digital twin of pharmaceutical cold chain ·
 MKT per USP&nbsp;⟨1079⟩, Arrhenius stability budget, lumped-capacitance RC with phase-change handling.
-Weather climatology is synthetic in this build; Open-Meteo historical reanalysis is wired but not
-used for these figures. Simulated results only — not a claim about any real network.
+Ambient forcing is <strong>real Open-Meteo historical reanalysis</strong> (2024 hourly, CC-BY 4.0)
+for all 18 airports, cached in-repo so every figure reproduces offline. Shipment routing, packaging
+and failure modes are simulated. Simulated results — not a claim about any real network.
 </footer>
 """
     (OUT / "index.html").write_text(html, encoding="utf-8")

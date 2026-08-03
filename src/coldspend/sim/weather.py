@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+from pathlib import Path
 from typing import Protocol
 
 import numpy as np
 
-__all__ = ["AmbientSource", "SyntheticClimate", "OpenMeteoArchive"]
+__all__ = ["AmbientSource", "SyntheticClimate", "ReanalysisClimate", "OpenMeteoArchive"]
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
@@ -76,6 +77,111 @@ class SyntheticClimate:
         wobble = np.random.default_rng(seed).normal(0.0, self.noise_c, hours)
 
         return mean_c + seasonal + diurnal + wobble
+
+
+class ReanalysisClimate:
+    """Real Open-Meteo historical reanalysis, pre-fetched per location.
+
+    THIS IS THE ONE THE HEADLINE FIGURES RUN ON. `SyntheticClimate` exists for
+    tests and offline work; it is not what the results are built from.
+
+    WHY PRE-FETCH RATHER THAN FETCH PER SHIPMENT
+    --------------------------------------------
+    Shipments depart at arbitrary hours, so caching on (lat, lon, departure)
+    produces a distinct key almost every time and issues tens of thousands of
+    requests for a portfolio of a few thousand. Instead: fetch ONE window of
+    hourly data per airport — 18 requests for the whole network — and slice it.
+    A year of hourly temperatures is ~8,800 floats, about 35 KB as float32.
+
+    THE CACHE IS COMMITTED ON PURPOSE. Reproducibility depends on it: a re-run
+    that silently pulls a revised reanalysis changes every downstream number.
+    It also means the build works with no network at all, which matters when the
+    thing being demonstrated is a live site.
+    """
+
+    def __init__(
+        self,
+        cache_dir: str | Path = "data/cache/weather",
+        start: dt.date = dt.date(2024, 1, 1),
+        days: int = 366,
+    ) -> None:
+        self.cache_dir = Path(cache_dir)
+        self.start = start
+        self.days = days
+        self._mem: dict[tuple[float, float], np.ndarray] = {}
+
+    # -- cache plumbing ----------------------------------------------------
+    def _key(self, lat: float, lon: float) -> str:
+        return f"{lat:+08.3f}_{lon:+09.3f}_{self.start:%Y%m%d}_{self.days}"
+
+    def _path(self, lat: float, lon: float) -> Path:
+        return self.cache_dir / f"{self._key(lat, lon)}.npz"
+
+    def _load(self, lat: float, lon: float) -> np.ndarray | None:
+        rounded = (round(lat, 3), round(lon, 3))
+        if rounded in self._mem:
+            return self._mem[rounded]
+        p = self._path(*rounded)
+        if p.exists():
+            arr = np.load(p)["t"].astype(float)
+            self._mem[rounded] = arr
+            return arr
+        return None
+
+    def fetch(self, lat: float, lon: float, force: bool = False) -> np.ndarray:
+        """Download and cache one window for a location. Idempotent."""
+        rounded = (round(lat, 3), round(lon, 3))
+        if not force:
+            cached = self._load(*rounded)
+            if cached is not None:
+                return cached
+
+        import requests
+
+        end = self.start + dt.timedelta(days=self.days - 1)
+        resp = requests.get(
+            ARCHIVE_URL,
+            params={
+                "latitude": rounded[0], "longitude": rounded[1],
+                "start_date": self.start.isoformat(), "end_date": end.isoformat(),
+                "hourly": "temperature_2m", "timezone": "UTC",
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        raw = resp.json()["hourly"]["temperature_2m"]
+
+        arr = np.array([np.nan if v is None else v for v in raw], dtype=float)
+        if np.isnan(arr).any():
+            # Reanalysis gaps are rare and short; carry the last good value
+            # forward rather than dropping hours and shifting the whole series.
+            idx = np.where(~np.isnan(arr))[0]
+            arr = np.interp(np.arange(arr.size), idx, arr[idx])
+
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(self._path(*rounded), t=arr.astype(np.float32))
+        self._mem[rounded] = arr
+        return arr
+
+    # -- AmbientSource -----------------------------------------------------
+    def hourly(self, lat: float, lon: float, start: dt.datetime, hours: int) -> np.ndarray:
+        if hours <= 0:
+            raise ValueError("hours must be positive")
+        arr = self._load(round(lat, 3), round(lon, 3))
+        if arr is None:
+            raise FileNotFoundError(
+                f"no cached reanalysis for ({lat:.3f}, {lon:.3f}). "
+                "Run `python scripts/fetch_weather.py` first — the cache is committed "
+                "so builds stay reproducible and work offline."
+            )
+
+        offset = int((start - dt.datetime.combine(self.start, dt.time())).total_seconds() // 3600)
+        # Wrap rather than clamp. A shipment departing near the end of the window
+        # continues into the same calendar period a year earlier, which preserves
+        # the diurnal cycle; clamping would pin it to a constant and quietly
+        # remove the variation the thermal model is driven by.
+        idx = (np.arange(offset, offset + hours)) % arr.size
+        return arr[idx]
 
 
 class OpenMeteoArchive:

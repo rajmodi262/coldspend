@@ -9,10 +9,10 @@
 
 **Your alarm threshold fires where intervening is worth almost nothing, and the money is
 being spent in the wrong place.** Re-pricing every mid-transit action against the stability
-budget — rather than following the fixed re-ice rule — is worth **$444,275
+budget — rather than following the fixed re-ice rule — is worth **$436,288
 per quarter on 2,411 shipments**, for **$240,000** of
 intervention. That benefit stays positive across every cost assumption tested, from
-$107,981 to $1,306,797.
+$109,740 to $1,272,568.
 
 The recommendation does not depend on the cost figures being right. **86%
 of the decision space keeps the same recommended action across the full low-to-high cost
@@ -34,9 +34,9 @@ in shelf life consumed by a factor of **1.787×** (82.6 against 46.2
 equivalent-hours at reference). Compliance records them as identical. They are not.
 
 Worse, the escalation threshold is mis-placed. At the current trigger point, intervening is
-worth **0.16 standard deviations** of stability budget — small enough that no
+worth **0.22 standard deviations** of stability budget — small enough that no
 achievable sample size could demonstrate it. Deeper into the exposure tail the same
-intervention is worth **0.53 SD**. The rule fires where acting barely helps, and stays
+intervention is worth **0.89 SD**. The rule fires where acting barely helps, and stays
 quiet where it would.
 
 ## Question
@@ -63,11 +63,11 @@ Across the quarter, the optimiser intervenes on **200 of 2,411 shipments**
 
 | cost level | current rule | optimised | intervention spend | benefit |
 |---|---|---|---|---|
-| 0.00 | $3,198,559 | $3,090,578 | $114,000 | **$107,981** |
-| 0.25 | $7,650,266 | $7,374,243 | $180,000 | **$276,023** |
-| 0.50 | $12,101,974 | $11,657,699 | $240,000 | **$444,275** |
-| 0.75 | $23,456,509 | $22,580,973 | $370,000 | **$875,536** |
-| 1.00 | $34,811,045 | $33,504,248 | $500,000 | **$1,306,797** |
+| 0.00 | $3,301,537 | $3,191,797 | $107,400 | **$109,740** |
+| 0.25 | $7,909,362 | $7,636,694 | $180,000 | **$272,668** |
+| 0.50 | $12,517,186 | $12,080,898 | $240,000 | **$436,288** |
+| 0.75 | $24,269,404 | $23,414,976 | $370,000 | **$854,428** |
+| 1.00 | $36,021,622 | $34,749,054 | $500,000 | **$1,272,568** |
 
 Benefit is measured against **the rule you already follow**, not against doing nothing.
 Beating inaction would be trivially true and not worth reporting.
@@ -76,9 +76,10 @@ Beating inaction would be trivially true and not worth reporting.
 
 ## What I would not claim
 
-- **These are simulated shipments.** No proprietary telemetry was used. The generator is a
-  physics-based digital twin — RC thermal model with phase-change handling, MKT per USP
-  ⟨1079⟩, Arrhenius degradation — driven by real airport geography.
+- **These are simulated shipments, driven by real weather.** No proprietary telemetry was used,
+  but the ambient forcing is not invented: every lane runs on real Open-Meteo hourly reanalysis
+  for 2024 at its actual airports. The thermal model — RC with phase-change handling, MKT per
+  USP ⟨1079⟩, Arrhenius degradation — and the routing and failure modes are simulated.
 - **The intervention costs are assumptions**, stated as ranges with their provenance. That is
   precisely why the memo leads with decision stability rather than with a dollar figure.
 - **Prediction is not the contribution.** Excursion prediction scores ~0.98 AUC here, which is
@@ -98,5 +99,5 @@ Beating inaction would be trivially true and not worth reporting.
 3. Run the threshold-placement analysis on your own excursion records. If the finding holds,
    moving the trigger is a change to an SOP, not a technology purchase.
 
-*Generated 2026-08-03 14:10 by `scripts/build_memo.py`. Every figure above is
+*Generated 2026-08-03 21:48 by `scripts/build_memo.py`. Every figure above is
 computed at build time from the same code the test suite exercises.*
