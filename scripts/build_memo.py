@@ -39,7 +39,7 @@ from coldspend.models.risk import (  # noqa: E402
 )
 from coldspend.physics import equivalent_hours  # noqa: E402
 from coldspend.report import render  # noqa: E402
-from coldspend.sim import SyntheticClimate, simulate_portfolio  # noqa: E402
+from coldspend.sim import ReanalysisClimate, simulate_portfolio  # noqa: E402
 
 N = 6000
 
@@ -50,7 +50,7 @@ def money(x: float) -> str:
 
 def main() -> None:
     print(f"simulating {N:,} shipments ...")
-    df = pd.DataFrame([r.record for r in simulate_portfolio(N, SyntheticClimate(), seed=20260803)])
+    df = pd.DataFrame([r.record for r in simulate_portfolio(N, ReanalysisClimate(), seed=20260803)])
     d = df[df["product"] != "CAR-T dose"].reset_index(drop=True)
 
     print("fitting the calibrated risk model ...")
@@ -154,9 +154,10 @@ Beating inaction would be trivially true and not worth reporting.
 
 ## What I would not claim
 
-- **These are simulated shipments.** No proprietary telemetry was used. The generator is a
-  physics-based digital twin — RC thermal model with phase-change handling, MKT per USP
-  ⟨1079⟩, Arrhenius degradation — driven by real airport geography.
+- **These are simulated shipments, driven by real weather.** No proprietary telemetry was used,
+  but the ambient forcing is not invented: every lane runs on real Open-Meteo hourly reanalysis
+  for 2024 at its actual airports. The thermal model — RC with phase-change handling, MKT per
+  USP ⟨1079⟩, Arrhenius degradation — and the routing and failure modes are simulated.
 - **The intervention costs are assumptions**, stated as ranges with their provenance. That is
   precisely why the memo leads with decision stability rather than with a dollar figure.
 - **Prediction is not the contribution.** Excursion prediction scores ~0.98 AUC here, which is
