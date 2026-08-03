@@ -160,6 +160,54 @@ def chart_policy_map(value: float, tau_h: float, title: str) -> tuple[str, dict]
     return png(fig), pm.region_shares()
 
 
+def chart_fda_validation(d: pd.DataFrame) -> tuple[str, dict]:
+    """Simulated failure composition against FDA's own recall record."""
+    from coldspend.validate import compare_to_simulation, failure_mix
+
+    mix = failure_mix()
+    c = compare_to_simulation(d, mix)
+
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.5),
+                                  gridspec_kw={"width_ratios": [1, 1.15]})
+
+    # left: what FDA's reasons actually say
+    labels = ["heat", "unspecified", "freeze"]
+    vals = [mix.counts.get("heat", 0) + mix.counts.get("both", 0),
+            mix.counts.get("unspecified", 0), mix.counts.get("freeze", 0)]
+    ax.barh(labels[::-1], vals[::-1], color=[BLUE, GRID, ORANGE][::-1], height=0.55)
+    for i, v in enumerate(vals[::-1]):
+        ax.annotate(str(v), (v, i), xytext=(5, 0), textcoords="offset points",
+                    va="center", fontweight="bold", color=INK, fontsize=10)
+    ax.set_xlim(0, max(vals) * 1.22)
+    ax.set_xlabel("distinct FDA recall events")
+    ax.set_title(f"What {mix.n_events} real recalls say", loc="left",
+                 fontweight="bold", color=INK)
+    ax.grid(axis="x", color=GRID, lw=0.7); ax.set_axisbelow(True)
+
+    # right: the one axis both sources measure, with FDA's interval
+    lo, hi = c["fda_ci_lo"], c["fda_ci_hi"]
+    ax2.barh([0], [hi - lo], left=[lo], height=0.30, color=GRID)
+    ax2.plot([c["fda_freeze_share"]], [0], "o", color=INK, ms=9, zorder=4)
+    ax2.plot([c["sim_freeze_share"]], [1], "o", color=ORANGE, ms=9, zorder=4)
+    ax2.annotate(f"FDA  {c['fda_freeze_share']:.0%}\n95% CI {lo:.0%}–{hi:.0%}  (n={mix.n_classifiable:.0f})",
+                 (c["fda_freeze_share"], 0), xytext=(0, 16), textcoords="offset points",
+                 ha="center", fontsize=9, color=INK, fontweight="bold")
+    ax2.annotate(f"simulator  {c['sim_freeze_share']:.0%}", (c["sim_freeze_share"], 1),
+                 xytext=(0, 14), textcoords="offset points", ha="center",
+                 fontsize=9.5, color=ORANGE, fontweight="bold")
+    ax2.set_ylim(-0.55, 1.75); ax2.set_yticks([])
+    ax2.set_xlim(0, max(hi, c["sim_freeze_share"]) * 1.25)
+    ax2.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:.0%}"))
+    ax2.set_xlabel("freezing as a share of directionally-classifiable failures")
+    ax2.set_title("The one axis both can answer", loc="left", fontweight="bold", color=INK)
+    ax2.grid(axis="x", color=GRID, lw=0.7); ax2.set_axisbelow(True)
+    for s in ("left", "right", "top"):
+        ax2.spines[s].set_visible(False)
+
+    fig.tight_layout()
+    return png(fig), c
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     n = 12000
@@ -209,6 +257,12 @@ def main() -> None:
         cap_rows += (f"<tr><td class='num'>{cap}</td><td class='num'>{n_re}</td>"
                      f"<td class='num'>${pl.total_expected_loss:,.0f}</td>"
                      f"<td class='num'>${pl.capacity_cost:,.0f}</td></tr>")
+
+    print("validating against openFDA ...")
+    fda_png, fda_cmp = chart_fda_validation(d)
+    sim_fs = f"{fda_cmp['sim_freeze_share']:.0%}"
+    fda_fs = f"{fda_cmp['fda_freeze_share']:.0%}"
+    fda_n = f"{fda_cmp['fda_classifiable']:.0f}"
 
     cold, warm = equivalent_hours([3.0], 60.0), equivalent_hours([7.5], 60.0)
     gate_rows = "".join(
@@ -277,6 +331,25 @@ A stability budget can.</p>
 <strong>0.17 standard deviations</strong> — too small to detect at any realistic sample size, by us
 or by an incumbent with a decade of real telemetry. Four times larger deeper in the tail.
 The rule is not wrong about <em>whether</em> to act; it is wrong about <em>when</em>.</p>
+
+<h2>Checked against FDA's own recall record</h2>
+<p>Being <em>driven</em> by real data is weaker than being <em>checked against</em> it. So: pick a
+pattern in the real world the simulator was never fitted to, and report how it compares — whether
+or not it matches.</p>
+<img src="data:image/png;base64,{fda_png}" alt="Simulator versus openFDA recall record">
+<p>The denominators differ — FDA reports the share of <em>recalls</em> caused by temperature, the
+simulator the share of <em>shipments</em> — so those two numbers are not comparable and pretending
+otherwise would be nonsense dressed as rigour. What both <em>can</em> answer is the
+<strong>composition</strong>: among thermal failures, how many were too hot versus too cold.</p>
+<div class="note"><strong>It does not match, and the mismatch is the useful part.</strong>
+The simulator puts freezing at {sim_fs} of thermal failures; FDA's record
+says {fda_fs}. With only {fda_n} directionally-classifiable
+events the interval is far too wide to call that a real disagreement. But the <em>mechanism</em>
+comparison is decisive: <strong>every freeze-caused recall in the dataset is a storage failure</strong>
+— product held below 32&nbsp;°F in a distribution centre, subfreezing in a warehouse, crystallised
+after cold storage. This model simulates transit only. It has no warehouse stage, so it structurally
+cannot produce the mechanism behind the entire real freeze record. That is a scope limit found by
+looking, not assumed — and more useful than agreement would have been.</div>
 
 <h2>Regression discontinuity at the threshold</h2>
 <p>Alarm thresholds are a textbook regression discontinuity on a running variable measured to a
