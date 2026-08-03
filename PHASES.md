@@ -104,7 +104,7 @@ The argmin. This is the project's novelty claim, so it gets the most care.
 
 **Gate:** the policy map renders; the recommendation is stable under the cost sweep.
 
-## Phase 5 — The Application
+## Phase 5 — The Application ✅ COMPLETE
 
 - marimo notebook as the app; WASM export replacing the Phase 3 ugly page
 - The six charts: policy map, RD figure, counterfactual pairs, burn-down with uncertainty fan,
@@ -113,7 +113,11 @@ The argmin. This is the project's novelty claim, so it gets the most care.
 
 **Gate:** a stranger can open the URL and reach the recommendation unaided.
 
-## Phase 6 — The Deliverables
+## Phase 6 — The Deliverables ⚠️ MOSTLY COMPLETE
+
+MEMO.md + site/memo.html regenerate from the analysis; PITCH.md carries the deck outline,
+resume bullets and interview answers. Outstanding: Quarto for PDF polish (needs a separate
+binary), and the uplift model + carrier scorecard still owed from Phase 3.
 
 The code is not the deliverable. The decision is.
 

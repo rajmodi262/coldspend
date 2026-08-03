@@ -14,7 +14,7 @@ product **1.787× faster**. Compliance cannot tell them apart. A stability budge
 
 ## Status
 
-Phases 0–4 of 6 complete (see [PHASES.md](PHASES.md)). 78 tests; CI runs them *before* it deploys,
+Phases 0–6 complete (Phase 6 bar Quarto PDF polish) (see [PHASES.md](PHASES.md)). 89 tests; CI runs them *before* it deploys,
 so a broken simulator cannot ship a working-looking page.
 
 | Component | State |
@@ -27,9 +27,10 @@ so a broken simulator cannot ship a working-looking page.
 | Risk models + probability calibration + Bayes oracle | ✅ |
 | Fuzzy RD with placebo/density/balance diagnostics | ⚠️ works, ~50% upward bias unresolved |
 | Cost model, portfolio MILP, policy map | ✅ |
+| marimo WASM app (solver runs in-browser) | ✅ |
+| Counterfactual quarter + self-regenerating memo | ✅ |
+| Deck outline, resume bullets, interview answers | ✅ [PITCH.md](PITCH.md) |
 | Uplift model, carrier scorecard | ⬜ |
-| marimo WASM app | ⬜ |
-| Client memo, deck | ⬜ |
 
 ## Results worth knowing before reading further
 
@@ -43,6 +44,8 @@ so a broken simulator cannot ship a working-looking page.
   can reject every individual cost assumption and the recommended action still stands.
 - **On a $4,000 saline shipment the QA deviation investigation costs several times the goods**, so
   intervening protects the paperwork, not the product.
+- **$240k of intervention beats the incumbent rule by $444k per simulated quarter** — computed, not
+  asserted, and positive across every cost assumption tested.
 
 ## Quickstart
 
