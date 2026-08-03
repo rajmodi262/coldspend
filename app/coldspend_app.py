@@ -44,6 +44,12 @@ async def _():
     # inside coldspend.decide.optimizer, which the scanner never reads, so
     # leaving it implicit produced `ModuleNotFoundError: No module named 'scipy'`
     # and killed every cell below.
+    # The Agg backend must be selected BEFORE pyplot is imported. Under Pyodide
+    # there is no display, and pyplot picking an interactive backend is a known
+    # way for figures to silently produce no output.
+    import matplotlib
+
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     import scipy  # noqa: F401
@@ -174,7 +180,7 @@ def _(Action, ACTIONS, cost_t, mo, np, plt, policy_map, tau, value):
         f"**{a.value.replace('_', ' ')}** {s:.0%}"
         for a, s in sorted(pm.region_shares().items(), key=lambda kv: -kv[1])
     )
-    mo.vstack([mo.as_html(fig), mo.md(f"Region shares: {shares}")])
+    mo.vstack([fig, mo.md(f"Region shares: {shares}")])
     return
 
 
