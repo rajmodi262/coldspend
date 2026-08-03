@@ -1,0 +1,46 @@
+[project]
+name = "coldspend"
+version = "0.1.0"
+description = "Cold chain is not a limit you breach. It's a budget you spend."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+# Pinned to 3.12 deliberately: shap requires >=3.12, while polars and mapie cap at
+# 3.13. That intersection is 3.12 or 3.13; 3.12 is chosen because every wheel on
+# PyPI exists for cp312.
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.15",          # scipy.optimize.milp IS HiGHS -- the MILP solver, no extra dep
+    "pandas>=2.2",
+    "pyarrow>=17",          # Parquet
+    "matplotlib>=3.9",
+    "scikit-learn>=1.5",    # HistGradientBoosting -- LightGBM has no Pyodide wheel
+    "lifelines>=0.30",      # survival; NOT scikit-survival, which is GPL-3.0
+    "requests>=2.32",
+    "diskcache>=5.6",       # weather cache -- reproducibility depends on this
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",    # property-based tests over the physics -- see tests/test_invariants.py
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/coldspend"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
