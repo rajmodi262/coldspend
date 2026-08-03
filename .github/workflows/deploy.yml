@@ -28,10 +28,14 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      # A venv, not --system: the runner's system Python is Debian-managed and
+      # refuses installs (PEP 668 externally-managed-environment). uv picks up
+      # ./.venv automatically for both `pip install` and `run`.
       - run: uv python install 3.12
-      - run: uv pip install --system -e ".[dev]"
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
       - name: acceptance tests, property invariants and identification gates
-        run: pytest tests/ -q
+        run: uv run pytest tests/ -q
 
   build:
     needs: test
@@ -42,9 +46,10 @@ jobs:
         with:
           enable-cache: true
       - run: uv python install 3.12
-      - run: uv pip install --system -e "."
+      - run: uv venv --python 3.12
+      - run: uv pip install -e "."
       - name: build the site (every figure recomputed from source)
-        run: python scripts/build_site.py
+        run: uv run python scripts/build_site.py
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
