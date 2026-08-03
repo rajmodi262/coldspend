@@ -40,23 +40,30 @@ OUTCOME = "post_hub_budget_pct"
 saves the entire design."""
 
 
-def _local_linear_intercept(x: np.ndarray, y: np.ndarray, h: float, side: str) -> float:
+def _local_poly_intercept(x: np.ndarray, y: np.ndarray, h: float, side: str,
+                          order: int = 1) -> float:
     """Boundary limit at x=0 from one side, triangular-kernel weighted least squares.
 
-    Local LINEAR, not higher-order: polynomial fits are known to misbehave at
-    boundaries, which is exactly where this estimator lives.
+    ``order=1`` is the conventional local-linear RD estimator. ``order=2`` fits a
+    local quadratic, which absorbs the curvature that biases the linear fit at a
+    boundary — the bias-reduction half of Calonico-Cattaneo-Titiunik.
     """
     m = (x >= 0) & (x <= h) if side == "right" else (x < 0) & (x >= -h)
-    if m.sum() < 10:
+    if m.sum() < 10 * order:
         return np.nan
     xs, ys = x[m], y[m]
     w = 1.0 - np.abs(xs) / h
-    X = np.column_stack([np.ones(xs.size), xs])
+    X = np.column_stack([xs ** k for k in range(order + 1)])
     XtW = X.T * w
     try:
         return float(np.linalg.solve(XtW @ X, XtW @ ys)[0])
     except np.linalg.LinAlgError:
         return np.nan
+
+
+def _local_linear_intercept(x: np.ndarray, y: np.ndarray, h: float, side: str) -> float:
+    """Back-compatible alias for the conventional local-linear boundary limit."""
+    return _local_poly_intercept(x, y, h, side, order=1)
 
 
 @dataclass
@@ -83,17 +90,26 @@ class RDResult:
                 f"first stage {self.jump_treatment:+.3f}   n {self.n_left}|{self.n_right}")
 
 
-def fuzzy_rd(R, D, Y, h: float, cutoff: float, flip_sign: bool = True) -> RDResult:
+def fuzzy_rd(R, D, Y, h: float, cutoff: float, flip_sign: bool = True,
+             order: int = 1) -> RDResult:
     """Wald ratio: (jump in outcome) / (jump in treatment probability).
 
     With ``flip_sign`` the result is reported as BENEFIT — positive means the
     intervention reduces budget consumed. The raw outcome jump is negative
     because re-icing lowers the burn.
+
+    ``order=1`` is the conventional estimator; ``order=2`` is bias-corrected.
+    A local linear fit at a boundary is biased whenever the underlying regression
+    function is curved, and here it is: the treatment effect grows steadily with
+    exposure, so E[Y|R] bends. The conventional estimator overstated the effect
+    by roughly 50% on this data. See `bias_correction_report`.
     """
     R, D, Y = map(lambda a: np.asarray(a, dtype=float), (R, D, Y))
     x = R - cutoff
-    jy = _local_linear_intercept(x, Y, h, "right") - _local_linear_intercept(x, Y, h, "left")
-    jd = _local_linear_intercept(x, D, h, "right") - _local_linear_intercept(x, D, h, "left")
+    jy = (_local_poly_intercept(x, Y, h, "right", order)
+          - _local_poly_intercept(x, Y, h, "left", order))
+    jd = (_local_poly_intercept(x, D, h, "right", order)
+          - _local_poly_intercept(x, D, h, "left", order))
 
     n_l = int(((x < 0) & (x >= -h)).sum())
     n_r = int(((x >= 0) & (x <= h)).sum())
@@ -107,7 +123,7 @@ def fuzzy_rd(R, D, Y, h: float, cutoff: float, flip_sign: bool = True) -> RDResu
 
 
 def bootstrap_ci(R, D, Y, h: float, cutoff: float, n_boot: int = 600,
-                 seed: int = 0) -> tuple[float, float]:
+                 seed: int = 0, order: int = 1) -> tuple[float, float]:
     """Percentile bootstrap.
 
     Preferred over the delta method because numerator and denominator are
@@ -120,7 +136,7 @@ def bootstrap_ci(R, D, Y, h: float, cutoff: float, n_boot: int = 600,
     out = np.empty(n_boot)
     for b in range(n_boot):
         i = rng.integers(0, n, n)
-        out[b] = fuzzy_rd(R[i], D[i], Y[i], h, cutoff).estimate
+        out[b] = fuzzy_rd(R[i], D[i], Y[i], h, cutoff, order=order).estimate
     out = out[np.isfinite(out)]
     if out.size < n_boot // 3:
         return np.nan, np.nan
