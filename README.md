@@ -25,7 +25,7 @@ so a broken simulator cannot ship a working-looking page.
 | Shipment generator, both potential outcomes | ✅ |
 | Calibration gate (5 hard identification checks) | ✅ |
 | Risk models + probability calibration + Bayes oracle | ✅ |
-| Fuzzy RD with placebo/density/balance diagnostics | ⚠️ works, ~50% upward bias unresolved |
+| Fuzzy RD with placebo/density/balance diagnostics | ✅ ~10% mean bias, full coverage; variance-limited |
 | Cost model, portfolio MILP, policy map | ✅ |
 | marimo WASM app | ⚠️ deployed but **not working** — see below |
 | Counterfactual quarter + self-regenerating memo | ✅ |
@@ -46,6 +46,30 @@ so a broken simulator cannot ship a working-looking page.
   intervening protects the paperwork, not the product.
 - **$240k of intervention beats the incumbent rule by $444k per simulated quarter** — computed, not
   asserted, and positive across every cost assumption tested.
+
+## The RD bias, and a textbook fix that failed
+
+The estimator's bias is now **+10.4% on the mean with 5/5 interval coverage**, measured over five
+independent cohorts of 15,000 shipments against the true complier LATE (was ~50%).
+
+Most of that came from the model, not the estimator: adding controlled storage gave the design more
+signal. The part that did *not* work is worth more than the part that did — **Imbens–Kalyanaraman /
+CCT MSE-optimal bandwidth selection is implemented, tested, and not used**, because measuring it
+showed it makes things worse:
+
+| bandwidth | mean bias | worst cohort | coverage |
+|---|---|---|---|
+| MSE-optimal (h* ≈ 50–83) | **+71%** | 132% | 5/5 |
+| fixed h = 200 | **+10.4%** | 59% | 5/5 |
+
+The reason is density, not algebra. The MSE criterion assumes enough mass at the cutoff for its
+variance term to behave asymptotically; only ~5% of shipments sit within ±150 min of the threshold,
+so a 55-minute window leaves the Wald ratio's denominator unstable — two cohorts came back with the
+*wrong sign*. **This design is variance-limited, not bias-limited**, which points at sample size or
+threshold placement rather than a cleverer bandwidth rule.
+
+The worst single cohort is still 59% out, which is why the project reports the interval and the
+bandwidth sweep and never a bare point estimate.
 
 ## Known broken: the WASM app
 
