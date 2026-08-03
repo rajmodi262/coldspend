@@ -1,7 +1,7 @@
 # Cold chain is a decision problem, and it is being run as a compliance problem
 
 **To:** Head of Supply Chain Quality  **From:** Coldspend analysis
-**Date:** 03 August 2026  **Basis:** 2,411 simulated shipments
+**Date:** 03 August 2026  **Basis:** 2,434 simulated shipments
 
 ---
 
@@ -9,10 +9,10 @@
 
 **Your alarm threshold fires where intervening is worth almost nothing, and the money is
 being spent in the wrong place.** Re-pricing every mid-transit action against the stability
-budget — rather than following the fixed re-ice rule — is worth **$436,288
-per quarter on 2,411 shipments**, for **$240,000** of
+budget — rather than following the fixed re-ice rule — is worth **$239,395
+per quarter on 2,434 shipments**, for **$198,000** of
 intervention. That benefit stays positive across every cost assumption tested, from
-$109,740 to $1,272,568.
+$89,100 to $677,113.
 
 The recommendation does not depend on the cost figures being right. **86%
 of the decision space keeps the same recommended action across the full low-to-high cost
@@ -34,9 +34,9 @@ in shelf life consumed by a factor of **1.787×** (82.6 against 46.2
 equivalent-hours at reference). Compliance records them as identical. They are not.
 
 Worse, the escalation threshold is mis-placed. At the current trigger point, intervening is
-worth **0.22 standard deviations** of stability budget — small enough that no
+worth **0.19 standard deviations** of stability budget — small enough that no
 achievable sample size could demonstrate it. Deeper into the exposure tail the same
-intervention is worth **0.89 SD**. The rule fires where acting barely helps, and stays
+intervention is worth **0.50 SD**. The rule fires where acting barely helps, and stays
 quiet where it would.
 
 ## Question
@@ -56,18 +56,18 @@ That third term is the one usually omitted, and omitting it is why cheap consign
 abandonable. On a $4,000 saline shipment the QA investigation costs several times the goods,
 so intervening is rational to protect the **paperwork**, not the product.
 
-Across the quarter, the optimiser intervenes on **200 of 2,411 shipments**
+Across the quarter, the optimiser intervenes on **165 of 2,434 shipments**
 — far fewer than the current rule, and on different ones.
 
 ### What it is worth, priced across the full cost range
 
 | cost level | current rule | optimised | intervention spend | benefit |
 |---|---|---|---|---|
-| 0.00 | $3,301,537 | $3,191,797 | $107,400 | **$109,740** |
-| 0.25 | $7,909,362 | $7,636,694 | $180,000 | **$272,668** |
-| 0.50 | $12,517,186 | $12,080,898 | $240,000 | **$436,288** |
-| 0.75 | $24,269,404 | $23,414,976 | $370,000 | **$854,428** |
-| 1.00 | $36,021,622 | $34,749,054 | $500,000 | **$1,272,568** |
+| 0.00 | $3,718,000 | $3,628,900 | $33,000 | **$89,100** |
+| 0.25 | $8,931,040 | $8,774,786 | $130,500 | **$156,255** |
+| 0.50 | $14,144,081 | $13,904,686 | $198,000 | **$239,395** |
+| 0.75 | $27,442,963 | $26,986,954 | $349,650 | **$456,009** |
+| 1.00 | $40,741,845 | $40,064,731 | $490,000 | **$677,113** |
 
 Benefit is measured against **the rule you already follow**, not against doing nothing.
 Beating inaction would be trivially true and not worth reporting.
@@ -99,5 +99,5 @@ Beating inaction would be trivially true and not worth reporting.
 3. Run the threshold-placement analysis on your own excursion records. If the finding holds,
    moving the trigger is a change to an SOP, not a technology purchase.
 
-*Generated 2026-08-03 21:48 by `scripts/build_memo.py`. Every figure above is
+*Generated 2026-08-03 22:33 by `scripts/build_memo.py`. Every figure above is
 computed at build time from the same code the test suite exercises.*

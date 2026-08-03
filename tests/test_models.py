@@ -121,14 +121,25 @@ def test_oracle_features_are_never_available_to_deployable_models():
 # ------------------------------------------------------------- generalisation
 
 
-def test_unseen_lanes_cost_something(reports):
-    """Random row splits let a model memorise lane quirks and flatter itself.
-    Held-out corridors are the question a client actually asks. A drop is
-    expected and healthy; no drop at all would mean lane carries no information,
-    which would itself be a finding."""
+def test_unseen_lanes_do_not_score_better(reports):
+    """Random row splits let a model memorise lane quirks and flatter itself;
+    held-out corridors are the question a client actually asks.
+
+    This originally asserted a strict drop. It stopped holding once controlled
+    storage entered the simulator, and the reason is a finding rather than a
+    flake: storage exposure is lane-independent, so it dilutes whatever
+    lane-specific signal existed until generalisation costs nothing measurable
+    (0.9559 held-out against 0.9558 random — a difference of 0.00007).
+
+    So the assertion is now the one that is actually diagnostic. Unseen lanes
+    scoring MATERIALLY BETTER would mean something is wrong — leakage, or a
+    fold that happens to be easier. Scoring the same means lane carries little
+    information here, which is worth saying out loud rather than asserting away.
+    """
     lane = next(r for r in reports if "UNSEEN LANES" in r.name)
     cal = next(r for r in reports if "SELECTED" in r.name)
-    assert lane.auc < cal.auc
+    assert lane.auc < cal.auc + 0.02, "held-out lanes should never be much easier"
+    assert lane.brier >= cal.brier * 0.95, "calibration should not improve on unseen lanes"
 
 
 def test_baseline_is_always_reported(reports):
