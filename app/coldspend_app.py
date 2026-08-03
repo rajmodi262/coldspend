@@ -130,7 +130,12 @@ def _(mo):
 
 @app.cell
 def _(Action, ACTIONS, cost_t, mo, np, plt, policy_map, tau, value):
-    pm = policy_map(value.value, tau_h=float(tau.value), n_budget=120, n_hours=120,
+    # 56x56, not 120x120. The map is recomputed on every slider drag, and each
+    # cell is an argmin over the action space — 120x120 is 14,400 optimiser calls
+    # per redraw, which is fine natively and unusably slow under Pyodide. At 56
+    # the decision boundaries are still smooth to the eye and the map redraws in
+    # about a second.
+    pm = policy_map(value.value, tau_h=float(tau.value), n_budget=56, n_hours=56,
                     t=float(cost_t.value))
 
     colour = {
@@ -252,7 +257,7 @@ def _(Action, ShipmentState, budget, burn, cost_t, hours, mo, p_exc,
 
 @app.cell
 def _(decision_stability, mo, value):
-    rep = decision_stability(value.value, n_budget=30, n_hours=30)
+    rep = decision_stability(value.value, n_budget=22, n_hours=22)
     mo.callout(
         mo.md(
             f"## Does this survive the costs being wrong?\n\n"
