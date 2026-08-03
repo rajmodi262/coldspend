@@ -248,6 +248,10 @@ def main() -> None:
 
 <h1>Coldspend</h1>
 <p class="sub">Cold chain is not a limit you breach. It's a budget you spend.</p>
+<p style="margin:.9rem 0 0"><a href="app/" style="display:inline-block;background:{ORANGE};color:#fff;
+ padding:.55rem 1.1rem;border-radius:5px;text-decoration:none;font-weight:600">
+ Open the interactive app &rarr;</a>
+ <span style="color:#898781;font-size:.85rem;margin-left:.6rem">solves in your browser</span></p>
 <p class="stamp">Built {dt.datetime.now():%Y-%m-%d %H:%M} · {n:,} simulated shipments ·
 every number on this page computed at build time</p>
 
