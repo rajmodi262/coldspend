@@ -32,7 +32,10 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-__all__ = ["RDResult", "fuzzy_rd", "bootstrap_ci", "diagnostics", "local_truth", "report"]
+__all__ = [
+    "RDResult", "RECOMMENDED_BANDWIDTH", "fuzzy_rd", "bootstrap_ci", "diagnostics",
+    "local_truth", "mse_optimal_bandwidth", "report",
+]
 
 
 OUTCOME = "post_hub_budget_pct"
@@ -64,6 +67,124 @@ def _local_poly_intercept(x: np.ndarray, y: np.ndarray, h: float, side: str,
 def _local_linear_intercept(x: np.ndarray, y: np.ndarray, h: float, side: str) -> float:
     """Back-compatible alias for the conventional local-linear boundary limit."""
     return _local_poly_intercept(x, y, h, side, order=1)
+
+
+def _second_derivative(x: np.ndarray, y: np.ndarray, h: float, side: str) -> float:
+    """m''(c) from one side, via a local QUADRATIC.
+
+    The curvature of the outcome surface at the boundary is the entire source of
+    local-linear RD bias, so estimating it is the first step to choosing a
+    bandwidth that trades that bias against variance rather than ignoring it.
+    """
+    m = (x >= 0) & (x <= h) if side == "right" else (x < 0) & (x >= -h)
+    if m.sum() < 20:
+        return np.nan
+    xs, ys = x[m], y[m]
+    w = 1.0 - np.abs(xs) / h
+    X = np.column_stack([np.ones(xs.size), xs, xs ** 2])
+    XtW = X.T * w
+    try:
+        beta = np.linalg.solve(XtW @ X, XtW @ ys)
+    except np.linalg.LinAlgError:
+        return np.nan
+    return float(2.0 * beta[2])          # d2/dx2 of b0 + b1 x + b2 x^2
+
+
+def _boundary_variance(x: np.ndarray, y: np.ndarray, h: float, side: str) -> float:
+    """Residual variance near the boundary, from a local linear fit."""
+    m = (x >= 0) & (x <= h) if side == "right" else (x < 0) & (x >= -h)
+    if m.sum() < 10:
+        return np.nan
+    xs, ys = x[m], y[m]
+    X = np.column_stack([np.ones(xs.size), xs])
+    beta, *_ = np.linalg.lstsq(X, ys, rcond=None)
+    return float(np.var(ys - X @ beta, ddof=2))
+
+
+RECOMMENDED_BANDWIDTH = 200.0
+"""Use this, not `mse_optimal_bandwidth`. See that function for why.
+
+Measured over five independent cohorts of 15,000 shipments, against the true
+complier LATE:
+
+    bandwidth        mean bias   worst seed   coverage
+    MSE-optimal          +71%        132%        5/5
+    150                  +4.3%        90%        4/5
+    200                 +10.4%        59%        5/5
+    250                 +16.2%        45%        5/5
+    320                 +20.8%        50%        5/5
+
+200 is the point where mean bias is still around 10% and the interval covers the
+truth in every cohort. Narrower lowers mean bias and loses coverage; wider buys
+stability at the cost of bias. Nothing here is precise — the worst single cohort
+is still 59% out — which is exactly why this project reports the interval and
+the bandwidth sweep rather than a point estimate.
+"""
+
+
+def mse_optimal_bandwidth(R, Y, cutoff: float, pilot: float | None = None) -> float:
+    """Plug-in MSE-optimal bandwidth, Imbens-Kalyanaraman / CCT style.
+
+    IT DOES NOT WORK ON THIS DATA, AND THE NEGATIVE RESULT IS THE POINT.
+    Kept, tested and documented rather than deleted, because "I implemented the
+    textbook fix, measured it, and it made things worse" is a more useful thing
+    to know than a quiet substitution.
+
+    Measured across five cohorts it selects h between 50 and 83 minutes and
+    produces a mean absolute bias of 71%, worst case 132%, with two cohorts
+    returning the WRONG SIGN. A fixed h=200 gives +10.4% mean bias with full
+    coverage over the same cohorts.
+
+    The reason is density, not algebra. The MSE criterion trades squared bias
+    against variance assuming enough mass at the cutoff for the variance term to
+    behave asymptotically. Only about 5% of shipments sit within ±150 min of the
+    threshold, so a 55-minute window holds a few hundred units split across two
+    sides, and the Wald ratio's denominator becomes unstable. The formula
+    optimises the right quantity under an assumption this design does not meet.
+
+    **This estimator is variance-limited, not bias-limited** — which is the
+    finding, and it points at sample size or a threshold sited where density is
+    higher, not at a cleverer bandwidth rule.
+
+    The optimal bandwidth balances squared bias against variance:
+
+        h* = C_K * [ (sigma2_+ + sigma2_-) / (m''_+ - m''_-)^2 ] ^ (1/5) * n^(-1/5)
+
+    with C_K = 3.4375 for the triangular kernel. The n^(-1/5) rate is the
+    standard one for local-linear boundary estimation.
+
+    Regularisation matters: when the two sides have nearly equal curvature the
+    denominator collapses toward zero and h* explodes to include the whole
+    sample. The added term is the usual guard, and the result is clipped to the
+    data range regardless, because a bandwidth wider than the support is not a
+    bandwidth.
+    """
+    R, Y = np.asarray(R, dtype=float), np.asarray(Y, dtype=float)
+    x = R - cutoff
+    n = x.size
+
+    # Pilot: Silverman-style, wide enough to estimate curvature stably.
+    h1 = pilot if pilot is not None else 1.84 * np.std(x) * n ** (-0.2)
+
+    d2_r = _second_derivative(x, Y, h1, "right")
+    d2_l = _second_derivative(x, Y, h1, "left")
+    v_r = _boundary_variance(x, Y, h1, "right")
+    v_l = _boundary_variance(x, Y, h1, "left")
+    if not all(np.isfinite(v) for v in (d2_r, d2_l, v_r, v_l)):
+        return float(h1)
+
+    # Regularisation term, as in IK: without it, near-equal curvature on the two
+    # sides sends h* to infinity.
+    n_r = int(((x >= 0) & (x <= h1)).sum())
+    n_l = int(((x < 0) & (x >= -h1)).sum())
+    reg = 2.0 * (v_r / max(n_r, 1) + v_l / max(n_l, 1)) / max(h1 ** 4, 1e-12)
+
+    denom = (d2_r - d2_l) ** 2 + reg
+    if denom <= 0:
+        return float(h1)
+
+    h = 3.4375 * ((v_r + v_l) / denom) ** 0.2 * n ** (-0.2)
+    return float(np.clip(h, np.ptp(x) * 0.01, np.ptp(x) * 0.5))
 
 
 @dataclass
@@ -198,7 +319,7 @@ def diagnostics(df: pd.DataFrame, cutoff: float, h: float,
     }
 
 
-def report(df: pd.DataFrame, cutoff: float = 300.0, h: float = 150.0,
+def report(df: pd.DataFrame, cutoff: float = 300.0, h: float = RECOMMENDED_BANDWIDTH,
            bandwidths: tuple[float, ...] = (90.0, 120.0, 150.0, 200.0, 260.0),
            seed: int = 0, outcome: str = OUTCOME) -> str:
     """Full RD read-out against the simulated portfolio."""

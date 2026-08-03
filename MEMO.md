@@ -1,7 +1,7 @@
 # Cold chain is a decision problem, and it is being run as a compliance problem
 
 **To:** Head of Supply Chain Quality  **From:** Coldspend analysis
-**Date:** 03 August 2026  **Basis:** 2,434 simulated shipments
+**Date:** 04 August 2026  **Basis:** 2,434 simulated shipments
 
 ---
 
@@ -99,5 +99,5 @@ Beating inaction would be trivially true and not worth reporting.
 3. Run the threshold-placement analysis on your own excursion records. If the finding holds,
    moving the trigger is a change to an SOP, not a technology purchase.
 
-*Generated 2026-08-03 22:33 by `scripts/build_memo.py`. Every figure above is
+*Generated 2026-08-04 01:36 by `scripts/build_memo.py`. Every figure above is
 computed at build time from the same code the test suite exercises.*
