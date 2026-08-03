@@ -28,20 +28,32 @@ app = marimo.App(width="medium", app_title="Coldspend")
 
 @app.cell
 async def _():
-    # In WebAssembly there is no site-packages to install into, so the package
-    # is fetched as a wheel sitting next to this page. Locally it is already
-    # importable and this falls straight through.
+    # In WebAssembly there is no site-packages, so the package is installed from
+    # a wheel served next to this page. Locally it is already importable and this
+    # falls straight through.
+    #
+    # The URL MUST be resolved with mo.notebook_location(). A relative path like
+    # "./coldspend-...whl" resolves against the WEB WORKER's location, not the
+    # page's, so it silently fetches a 404 HTML page and micropip fails with
+    # `BadZipFile: File is not a zip file` — which is what the first version of
+    # this app did, and why nothing below it ever ran.
+    import marimo as mo
+
     try:
         import coldspend  # noqa: F401
     except ImportError:
         import micropip
 
-        await micropip.install("./coldspend-0.1.0-py3-none-any.whl")
+        wheel = str(mo.notebook_location() / "public" / "coldspend-0.1.0-py3-none-any.whl")
+        # deps=False: the wheel declares the full project's dependencies (pandas,
+        # pyarrow, lifelines, diskcache ...), but this app only touches the
+        # physics and decision layers, which need numpy and scipy — both already
+        # in Pyodide. Resolving the rest would fail on packages that have no
+        # emscripten build.
+        await micropip.install(wheel, deps=False)
 
     import matplotlib.pyplot as plt
     import numpy as np
-
-    import marimo as mo
     from coldspend.decide import (
         DEFAULT_COSTS,
         Action,

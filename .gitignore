@@ -21,3 +21,5 @@ site/
 
 # built wheel — CI rebuilds it; never commit a stale copy
 dist/
+
+app/public/
