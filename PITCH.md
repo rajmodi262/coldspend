@@ -26,13 +26,13 @@ didn't flag stops evaluating your work and starts evaluating your judgement.
 > every mid-transit action — re-ice, expedite, re-route, recall — in one currency, then takes the
 > argmin.
 >
-> In my simulated network, on about two thousand shipments, that is worth $444,000 a quarter
-> against the rule they already follow, for $240,000 of intervention. And the benefit stays
+> In my simulated network, on about two thousand shipments, that is worth $239,000 a quarter
+> against the rule they already follow, for $198,000 of intervention. And the benefit stays
 > positive across every cost assumption I tested.
 >
 > But the finding I'd actually lead with is smaller and more uncomfortable: **their alarm
 > threshold fires where intervening is worth 0.17 standard deviations.** Four hundred minutes
-> later the same action is worth 0.68. The rule isn't wrong about whether to act. It's wrong
+> later the same action is worth 0.52. The rule isn't wrong about whether to act. It's wrong
 > about when."
 
 ## The demo, four beats
@@ -62,7 +62,7 @@ didn't flag stops evaluating your work and starts evaluating your judgement.
 | 7 | The missing piece is the argmin | the policy map |
 | 8 | Re-icing buys time, not immunity | the two policy maps, τ=12 vs τ=40 |
 | 9 | It is an optimisation because shipments compete | the capacity table |
-| 10 | $240k of intervention, $444k better than the current rule | the quarter, priced as a range |
+| 10 | $198k of intervention, $239k better than the current rule | the quarter, priced as a range |
 | 11 | The recommendation survives the costs being wrong | 86% decision stability |
 | 12 | What I'd do differently with real data | the three next steps |
 
@@ -79,22 +79,22 @@ argues the dollar figure matters less than its stability.
 > per USP ⟨1079⟩) generating calibrated shipment data with both potential outcomes retained;
 > trained calibrated risk models scored against a Bayes-oracle ceiling; developed a portfolio MILP
 > that prices six mid-transit interventions in one currency under shared hub capacity. Simulated
-> quarter: **$444k expected loss avoided for $240k intervention spend, stable across the full cost
+> quarter: **$239k expected loss avoided for $198k intervention spend, positive across the full cost
 > range.** Identified via regression discontinuity that the industry's standard alarm threshold
-> fires where intervention is worth 0.17 SD versus 0.68 SD deeper in the exposure tail.
+> fires where intervention is worth 0.17 SD versus 0.52 SD deeper in the exposure tail.
 > *Python, scikit-learn, scipy/HiGHS, marimo/WASM.*
 
 **Engineering flavour**
 
-> **Coldspend** — physics simulator, calibrated ML and a MILP optimiser, shipped as a static site
-> with the solver running client-side in WebAssembly (Pyodide + scipy/HiGHS); zero hosting cost,
-> no backend. 89 tests including property-based invariants over the thermal model; CI runs the
+> **Coldspend** — physics simulator driven by real Open-Meteo reanalysis, calibrated ML and a MILP
+> optimiser, validated against FDA's own recall record and shipped as a static site with zero
+> hosting cost. 106 tests including property-based invariants over the thermal model; CI runs the
 > acceptance gates before it deploys. *Python 3.12, uv, scikit-learn, scipy, marimo, GitHub Actions.*
 
 **One line**
 
-> Built a cold-chain decision engine — physics simulator → calibrated risk → MILP optimiser →
-> browser-side app — showing $444k/quarter against the incumbent rule, and that the industry's
+> Built a cold-chain decision engine — physics simulator on real reanalysis → calibrated risk →
+> MILP optimiser, externally validated against FDA recall data — showing $239k/quarter against the incumbent rule, and that the industry's
 > alarm threshold is set where intervening barely helps.
 
 ## The five questions, and what to say
@@ -106,7 +106,7 @@ argues the dollar figure matters less than its stability.
 > against my 0.983, so there is genuine irreducible uncertainty, but the honest reading is that
 > prediction isn't the contribution. The argmin is."
 
-**"Where did $444,000 come from?"**
+**"Where did $239,000 come from?"**
 > "From the counterfactual quarter, computed — not assumed. And I'd rather you didn't trust it:
 > the intervention costs are assumptions in a plausible band. That's why the memo leads with
 > decision stability instead. 86% of the state space keeps the same recommended action across the
@@ -120,13 +120,24 @@ argues the dollar figure matters less than its stability.
 > number is the evidence the decisions genuinely don't separate."
 
 **"What's the hardest thing you got wrong?"**
-> "The regression discontinuity gave a biased estimate that got *worse* as I narrowed the
-> bandwidth — backwards from how RD bias behaves. I ruled out curvature and complier composition
-> before finding it: counting whole timesteps above spec had quantised my running variable, so
-> there was a mass point sitting exactly on the threshold, anchoring one side of the fit while the
-> other extrapolated. Interpolating the crossing times fixed it. There's still a residual ~50%
-> overestimate I haven't closed — it needs MSE-optimal bandwidth selection — so that point
-> estimate stays out of my deck."
+> "Three things, and the third is the one I'd actually tell you about.
+>
+> First, the RD gave a biased estimate that got *worse* as I narrowed the bandwidth — backwards
+> from how RD bias behaves. I ruled out curvature and complier composition before finding it:
+> counting whole timesteps above spec had quantised my running variable, so a mass point sat
+> exactly on the threshold, anchoring one side of the fit while the other extrapolated.
+>
+> Second, I validated against FDA's recall record and it disagreed. Storage appears in half of
+> real temperature recalls and transit in a seventh, and *every* freeze-caused recall is a
+> warehouse event. My model was transit-only, so it structurally couldn't produce them. I added
+> a storage stage and the freeze share moved from 3.5% to 11%, inside FDA's interval.
+>
+> Third — and this is the one — I implemented the textbook fix for the remaining bias, CCT
+> MSE-optimal bandwidth selection, and it made things seven times worse. 71% mean bias against
+> 10% for a fixed bandwidth, wrong sign in two of five cohorts. The reason is density: only about
+> 5% of shipments sit near the threshold, so the selector picks a 55-minute window and the Wald
+> ratio's denominator goes unstable. The design is variance-limited, not bias-limited. I kept the
+> code and documented why it isn't used, because without it choosing a bandwidth looks arbitrary."
 
 **"Why ZS?"**
 > "Because the deliverable here was never the code. It was a memo a client could act on Monday,
@@ -142,4 +153,5 @@ argues the dollar figure matters less than its stability.
 - ~~"It never breached 8 °C but its MKT was 9.4"~~ — arithmetically impossible; MKT is bounded by
   the trace.
 - ~~"This saves product QA would otherwise destroy"~~ — you cannot un-degrade a molecule.
-- ~~"There is no server"~~ — no *application* server; Pyodide still comes from a CDN.
+- ~~"There is no server"~~ — no *application* server; the interactive app never worked and is not deployed.
+- ~~"My simulator matches reality"~~ — it does not, on the one axis checked. Say what disagreed and why.
