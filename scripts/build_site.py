@@ -117,6 +117,49 @@ def chart_effect_by_exposure(d: pd.DataFrame) -> str:
     return png(fig)
 
 
+def chart_policy_map(value: float, tau_h: float, title: str) -> tuple[str, dict]:
+    """The headline visual: the argmin made visible as decision regions."""
+    from coldspend.decide import Action, policy_map
+    from coldspend.decide.optimizer import ACTIONS
+
+    pm = policy_map(value, tau_h=tau_h, n_budget=140, n_hours=140)
+    colour = {
+        Action.DO_NOTHING: "#e6e5df",
+        Action.REICE: BLUE,
+        Action.EXPEDITE: ORANGE,
+        Action.REROUTE: "#1baf7a",
+        Action.RECALL: "#e34948",
+    }
+    present = sorted(np.unique(pm.action_index))
+    cmap = mpl.colors.ListedColormap([colour[ACTIONS[int(i)]] for i in present])
+    remap = np.zeros_like(pm.action_index)
+    for new, old in enumerate(present):
+        remap[pm.action_index == old] = new
+
+    fig, ax = plt.subplots(figsize=(7.6, 4.4))
+    ax.pcolormesh(pm.budget_grid, pm.hours_grid, remap, cmap=cmap, shading="auto",
+                  vmin=-0.5, vmax=len(present) - 0.5)
+
+    # Label each region in place rather than with a legend box — the reader
+    # should never have to look away from the map to decode a colour.
+    for new, old in enumerate(present):
+        act = ACTIONS[int(old)]
+        ys, xs = np.where(remap == new)
+        if ys.size < 40:
+            continue
+        cx, cy = pm.budget_grid[int(np.median(xs))], pm.hours_grid[int(np.median(ys))]
+        dark = act in (Action.REICE, Action.EXPEDITE, Action.REROUTE, Action.RECALL)
+        ax.annotate(act.value.replace("_", " "), (cx, cy), ha="center", va="center",
+                    fontsize=11, fontweight="bold",
+                    color="white" if dark else INK2)
+
+    ax.set_xlabel("stability budget already consumed (%)")
+    ax.set_ylabel("hours remaining to destination")
+    ax.set_title(title, loc="left", fontweight="bold", color=INK)
+    fig.tight_layout()
+    return png(fig), pm.region_shares()
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     n = 12000
@@ -144,6 +187,28 @@ def main() -> None:
                           dd.post_hub_budget_pct.values, 250.0, 900.0, n_boot=300, seed=1)
     near = dd[dd.running_var_min.between(650, 1150)]
     truth = near[near.truth_stratum == "complier"].truth_ite_pct.mean()
+
+    print("solving policy maps ...")
+    from coldspend.decide import Action, ShipmentState, decision_stability, optimise_portfolio
+
+    pm_poor, shares_poor = chart_policy_map(
+        850_000.0, 12.0, "An $850,000 consignment in a poorly-insulated box")
+    pm_good, _ = chart_policy_map(
+        850_000.0, 40.0, "The same consignment, better insulated")
+    stab = decision_stability(850_000.0, n_budget=35, n_hours=35)
+
+    rng = np.random.default_rng(3)
+    port = [ShipmentState(f"S{i}", "DXB", float(rng.uniform(5, 70)),
+                          float(rng.uniform(0.5, 2.2)), float(rng.uniform(6, 40)),
+                          float(rng.choice([4_000, 45_000, 120_000, 850_000])),
+                          float(rng.uniform(0.05, 0.9))) for i in range(60)]
+    cap_rows = ""
+    for cap in (60, 20, 8, 0):
+        pl = optimise_portfolio(port, reice_capacity={"DXB": cap})
+        n_re = sum(1 for a in pl.assignment.values() if a is Action.REICE)
+        cap_rows += (f"<tr><td class='num'>{cap}</td><td class='num'>{n_re}</td>"
+                     f"<td class='num'>${pl.total_expected_loss:,.0f}</td>"
+                     f"<td class='num'>${pl.capacity_cost:,.0f}</td></tr>")
 
     cold, warm = equivalent_hours([3.0], 60.0), equivalent_hours([7.5], 60.0)
     gate_rows = "".join(
@@ -221,6 +286,34 @@ threshold appears to exist, in pharma, food, reefer, blood banking or organ tran
 <div class="note"><strong>Known open issue.</strong> The estimator covers the truth and is stable
 across bandwidths, but still overstates the complier effect by roughly 50%. Robust bias-correction
 is not yet applied, so this point estimate should not be read as unbiased.</div>
+
+<h2>The decision: what to actually do</h2>
+<p>Every part of this has been built by somebody except one — the argmin. No published system,
+patent or paper prices <em>all</em> the mid-transit actions in a single currency against a
+continuous stability-budget state. Below, each point of the plane is a state a shipment can be in,
+coloured by the cheapest action from there.</p>
+<img src="data:image/png;base64,{pm_poor}" alt="Policy map, poorly insulated">
+<img src="data:image/png;base64,{pm_good}" alt="Policy map, well insulated">
+<p>Re-icing buys <em>time</em>, not immunity: a fresh charge holds for roughly one thermal time
+constant, so on a long leg it wears off and most of the burn happens anyway. That is why the
+well-insulated box is mostly “re-ice” and the poorly-insulated one is mostly “expedite” — with the
+same product, the same money and the same risk. A policy map can be reviewed and signed
+<strong>once, in advance</strong>, which is a very different governance object from a
+recommendation that has to be adjudicated shipment by shipment at 2&nbsp;a.m.</p>
+
+<h2>Why this is an optimisation and not a lookup</h2>
+<p>Five actions on one shipment is a lookup table, and pretending otherwise would be theatre. It
+becomes a genuine optimisation only when shipments <em>compete</em> — a hub has a finite number of
+re-icing bays per shift, so helping one shipment means not helping another.</p>
+<table><tr><th class="num">bays</th><th class="num">re-iced</th><th class="num">expected loss</th>
+<th class="num">cost of the constraint</th></tr>{cap_rows}</table>
+<p>The right-hand column is what scarcity costs against an unconstrained world. It is strictly
+positive whenever the constraint binds — which is the evidence that the decisions genuinely do not
+separate.</p>
+<div class="note"><strong>{stab.stable_share:.0%} of states keep the same recommendation across the
+full low-to-high cost range.</strong> That is a deliberately stronger claim than any dollar figure:
+the intervention costs here are assumptions in a plausible band, and a reviewer can reject every one
+of them individually while the recommended action still stands.</div>
 
 <h2>Prediction is the easy part</h2>
 <table>
